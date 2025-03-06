@@ -105,6 +105,32 @@ router.delete("/posts/:id", authenticateToken, async (req, res) => {
     }
   });
 
+// Get posts for a specific user (Protected Route)
+router.get("/posts/user/:userId", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    console.log('Fetching posts for user:', userId);
 
+    const userPosts = await prisma.post.findMany({
+      where: { userId: userId },
+      include: {
+        user: { 
+          select: { 
+            id: true, 
+            username: true,
+            avatar: true 
+          } 
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-  module.exports = router;
+    console.log(`Found ${userPosts.length} posts for user ${userId}`);
+    res.json(userPosts);
+  } catch (error) {
+    console.error("Error fetching user's posts:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+module.exports = router;

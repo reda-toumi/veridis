@@ -156,5 +156,6 @@ router.post("/upload-profile-picture", authenticateToken, upload.single("image")
   }
 });
 
+// Get user profile by username route moved to profileRoutes.js
 
 module.exports = router;

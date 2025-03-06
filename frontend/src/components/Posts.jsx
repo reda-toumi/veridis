@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 function Posts({ userId = null, allowPost = false }) {
   const [posts, setPosts] = useState([]);
@@ -8,7 +9,7 @@ function Posts({ userId = null, allowPost = false }) {
 
   // Determine API endpoint based on whether `userId` is provided
   const API_URL = userId
-    ? `http://localhost:5001/api/my-posts` // Fetch only user-specific posts
+    ? `http://localhost:5001/api/posts/user/${userId}` // Fetch posts for specific user
     : `http://localhost:5001/api/posts`; // Fetch all posts
 
   // Fetch posts on mount or when `userId` changes
@@ -18,7 +19,11 @@ function Posts({ userId = null, allowPost = false }) {
         const token = localStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+        console.log('Fetching posts from:', API_URL);
+        console.log('For user ID:', userId);
+
         const response = await axios.get(API_URL, { headers });
+        console.log('Posts received:', response.data);
         setPosts(response.data);
       } catch (err) {
         console.error("Error fetching posts:", err);
@@ -82,7 +87,7 @@ function Posts({ userId = null, allowPost = false }) {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        {userId ? "My Posts" : "All Posts"}
+        {allowPost ? "My Posts" : "All Posts"}
       </h2>
 
       {/* Post Input Box: Only show when `allowPost` is true */}
@@ -144,13 +149,17 @@ function Posts({ userId = null, allowPost = false }) {
               )}
 
               <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <span className="text-indigo-600 font-medium">{post.user?.username[0] || "U"}</span>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-800">{post.user?.username || "Unknown User"}</p>
-                  <p className="text-sm text-gray-500">{new Date(post.createdAt).toLocaleString()}</p>
-                </div>
+                <Link to={`/dashboard/profile/${post.user?.username}`} className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <span className="text-indigo-600 font-medium">{post.user?.username[0] || "U"}</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-800 hover:text-indigo-600 transition-colors">
+                      {post.user?.username || "Unknown User"}
+                    </p>
+                    <p className="text-sm text-gray-500">{new Date(post.createdAt).toLocaleString()}</p>
+                  </div>
+                </Link>
               </div>
               <p className="text-gray-700 leading-relaxed">{post.content}</p>
               <div className="mt-4 flex items-center space-x-4 text-gray-500">
@@ -180,7 +189,7 @@ function Posts({ userId = null, allowPost = false }) {
             </div>
           ))
         ) : (
-          <div className="text-gray-400 text-center py-6"></div>
+          <div className="text-gray-400 text-center py-6">No posts found</div>
         )}
       </div>
     </div>

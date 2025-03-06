@@ -7,6 +7,7 @@ const fs = require("fs");
 // Keep only necessary route imports
 const authRoutes = require("./routes/authRoutes");
 const postRoutes = require("./routes/postRoutes"); // Added post routes
+const profileRoutes = require("./routes/profileRoutes"); // Added profile routes
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -26,6 +27,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", postRoutes); // "/api/posts" is now accessible
+app.use("/api/profile", profileRoutes); // "/api/profile/:username" is now accessible
 
 // Test Route
 app.get("/", (req, res) => {

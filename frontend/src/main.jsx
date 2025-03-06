@@ -31,6 +31,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/dashboard/profile/:username" 
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </Router>
   </React.StrictMode>
