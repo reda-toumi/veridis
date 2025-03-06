@@ -1,0 +1,30 @@
+{
+    "rules": [
+      {
+        "description": "All React components should be defined using function declarations, not arrow functions.",
+        "example": "function ComponentName() { return <div>...</div>; }",
+        "avoid": "const ComponentName = () => { return <div>...</div>; };"
+      },
+      {
+        "description": "Always use Tailwind CSS for styling instead of inline styles or separate CSS files.",
+        "example": "<div className='bg-blue-500 text-white p-4 rounded-lg'>Hello</div>",
+        "avoid": "<div style={{ backgroundColor: 'blue', color: 'white' }}>Hello</div>"
+      },
+      {
+        "description": "Use React Router for navigation instead of <a> tags with href.",
+        "example": "<Link to='/dashboard'>Go to Dashboard</Link>",
+        "avoid": "<a href='/dashboard'>Go to Dashboard</a>"
+      },
+      {
+        "description": "Use localStorage for JWT token storage and wrap API calls with Axios.",
+        "example": "axios.get('/api/user', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })",
+        "avoid": "fetch('/api/user').then(res => res.json()).then(data => console.log(data));"
+      },
+      {
+        "description": "Ensure all API calls are inside a try-catch block to handle errors properly.",
+        "example": "try { const res = await axios.get('/api/data'); } catch (error) { console.error(error); }",
+        "avoid": "const res = await axios.get('/api/data');"
+      }
+    ]
+  }
+  
