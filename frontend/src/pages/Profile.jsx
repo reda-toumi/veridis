@@ -45,7 +45,7 @@ function Profile() {
 
         // If no username is provided, fetch the current user's profile
         const endpoint = username 
-          ? API_URLS.profile(username)
+          ? API_URLS.profile.get(username)
           : API_URLS.auth.me;
         
         const headers = {

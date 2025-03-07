@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import Search from './Search';
 
 function Header({ navItems }) {
   const location = useLocation();
@@ -28,6 +29,9 @@ function Header({ navItems }) {
                   {item.label}
                 </Link>
               ))}
+              <div className="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200">
+                <Search />
+              </div>
             </div>
           </div>
           <div className="flex items-center">

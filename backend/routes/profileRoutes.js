@@ -5,6 +5,42 @@ const authenticateToken = require("../middleware/authMiddleware");
 const prisma = new PrismaClient();
 const router = express.Router();
 
+// Search users by username
+router.get("/search/:query", authenticateToken, async (req, res) => {
+  try {
+    const query = req.params.query;
+    if (!query || query.length < 2) {
+      return res.json([]);
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        username: {
+          contains: query,
+          mode: 'insensitive'
+        }
+      },
+      select: {
+        id: true,
+        username: true,
+        avatar: true
+      },
+      take: 5 // Limit to 5 results
+    });
+
+    // Convert avatar to base64 if it exists
+    const usersWithAvatarUrl = users.map(user => ({
+      ...user,
+      avatarUrl: user.avatar ? `data:image/jpeg;base64,${user.avatar.toString('base64')}` : null
+    }));
+
+    res.json(usersWithAvatarUrl);
+  } catch (error) {
+    console.error("Search error:", error);
+    res.status(500).json({ error: "Failed to search users" });
+  }
+});
+
 // Get user profile by username
 router.get("/:username", authenticateToken, async (req, res) => {
   try {
