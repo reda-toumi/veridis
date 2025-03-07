@@ -24,7 +24,11 @@ function Posts({ userId = null, allowPost = false }) {
 
         const response = await axios.get(API_URL, { headers });
         console.log('Posts received:', response.data);
-        setPosts(response.data);
+        // Sort posts by newest first
+        const sortedPosts = response.data.sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setPosts(sortedPosts);
       } catch (err) {
         console.error("Error fetching posts:", err);
         setError("Failed to load posts. Please try again.");
@@ -87,10 +91,10 @@ function Posts({ userId = null, allowPost = false }) {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        {allowPost ? "My Posts" : "All Posts"}
+        All Posts
       </h2>
 
-      {/* Post Input Box: Only show when `allowPost` is true */}
+      {/* Post Input Box: Show in Browse page or when viewing own profile */}
       {allowPost && (
         <div className="mb-8">
           <div className="max-w-2xl flex gap-3">

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useParams } from 'react-router-dom';
-import Header from '../components/Header';
-import ProfilePicture from '../components/ProfilePicture';
-import Posts from '../components/Posts';
+import { useParams, useNavigate } from 'react-router-dom';
+import MainPage from '../components/MainPage';
 import { API_URLS } from '../config';
 
 function Profile() {
@@ -11,14 +9,30 @@ function Profile() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const { username } = useParams();
+  const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
-  const navItems = [
-    { to: '/dashboard/profile', label: 'Profile', active: true },
-    { to: '/dashboard/browse', label: 'Browse', active: false }
-  ];
+  // Debug log for URL params and current user
+  console.log('URL username:', username);
+  console.log('Current user:', currentUser);
 
   useEffect(() => {
+    // If the URL username matches the current user's username, redirect to /dashboard/profile
+    if (username && currentUser?.username && username === currentUser.username) {
+      console.log('Matching usernames, redirecting...');
+      console.log('URL username:', username);
+      console.log('Current user username:', currentUser.username);
+      navigate('/dashboard/profile', { replace: true });
+      return;
+    } else {
+      console.log('No match or missing data:');
+      console.log('- username from URL exists:', !!username);
+      console.log('- currentUser exists:', !!currentUser);
+      console.log('- currentUser.username exists:', !!currentUser?.username);
+      console.log('- username:', username);
+      console.log('- currentUser?.username:', currentUser?.username);
+    }
+
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -29,27 +43,17 @@ function Profile() {
           return;
         }
 
-        console.log('Fetching profile for username:', username);
-        console.log('Current user from localStorage:', currentUser);
-        console.log('Token from localStorage:', token.substring(0, 20) + '...');
-        
         // If no username is provided, fetch the current user's profile
         const endpoint = username 
           ? API_URLS.profile(username)
           : API_URLS.auth.me;
         
-        console.log('Using endpoint:', endpoint);
-        console.log('Token present:', !!token);
-
         const headers = {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         };
-        console.log('Request headers:', headers);
 
         const res = await axios.get(endpoint, { headers });
-        
-        console.log('Profile data received:', res.data);
         setUser(res.data);
       } catch (err) {
         console.error('Error details:', {
@@ -61,8 +65,7 @@ function Profile() {
         
         if (err.response?.status === 401) {
           setError('Authentication failed. Please log in again.');
-          // Optionally redirect to login
-          window.location.href = '/login';
+          navigate('/login');
           return;
         }
         
@@ -82,43 +85,17 @@ function Profile() {
     };
 
     fetchUser();
-  }, [username]);
+  }, [username, navigate, currentUser]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <Header navItems={navItems} />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 mb-8">
-          <div className="flex flex-col items-center">
-            <ProfilePicture user={user} />
-            <h2 className="text-3xl font-bold text-gray-800 mt-4">
-              {loading ? 'Loading...' : error ? 'Error' : user?.username}
-            </h2>
-            {user?.bio && (
-              <p className="text-gray-600 mt-2 text-center max-w-md">{user.bio}</p>
-            )}
-            <p className="text-gray-500 mt-2">
-              Member since {new Date(user?.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          
-          {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-center">{error}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Show posts and allow posting only if viewing own profile */}
-        {user && (
-          <Posts 
-            userId={user.id} 
-            allowPost={!username || username === currentUser?.username} 
-          />
-        )}
-      </main>
-    </div>
+    <MainPage
+      user={user}
+      isProfilePage={true}
+      allowPost={!username || username === currentUser?.username}
+      currentPage="profile"
+      loading={loading}
+      error={error}
+    />
   );
 }
 

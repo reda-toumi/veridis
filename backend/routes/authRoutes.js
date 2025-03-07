@@ -101,14 +101,27 @@ router.get("/me", async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, username: true, email: true }
+      select: { 
+        id: true, 
+        username: true, 
+        email: true,
+        createdAt: true,
+        bio: true,
+        avatar: true
+      }
     });
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json(user);
+    // Convert avatar to base64 if it exists
+    const userWithAvatarUrl = {
+      ...user,
+      avatarUrl: user.avatar ? `data:image/jpeg;base64,${user.avatar.toString('base64')}` : null
+    };
+
+    res.json(userWithAvatarUrl);
   } catch (error) {
     console.error(error);
     res.status(401).json({ error: "Invalid token" });

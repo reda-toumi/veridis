@@ -22,6 +22,7 @@ function Login() {
     try {
       const res = await axios.post(API_URLS.auth.login, formData);
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/dashboard/profile");
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong");

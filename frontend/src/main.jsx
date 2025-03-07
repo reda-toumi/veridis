@@ -5,6 +5,7 @@ import App from "./App";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Browse from "./pages/Browse";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./index.css";
 
@@ -36,6 +37,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/dashboard/browse" 
+          element={
+            <ProtectedRoute>
+              <Browse />
             </ProtectedRoute>
           } 
         />
