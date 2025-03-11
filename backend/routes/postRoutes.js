@@ -65,9 +65,15 @@ router.get("/posts", async (req, res) => {
               userId: true
             }
           },
+          dislikes: {
+            select: {
+              userId: true
+            }
+          },
           _count: {
             select: {
-              likes: true
+              likes: true,
+              dislikes: true
             }
           }
         },
@@ -76,16 +82,20 @@ router.get("/posts", async (req, res) => {
         },
       });
 
-      // Format posts with like status and count
+      // Format posts with like/dislike status and count
       const formattedPosts = posts.map(post => ({
         ...post,
         liked: userId ? post.likes.some(like => like.userId === userId) : false,
+        disliked: userId ? post.dislikes.some(dislike => dislike.userId === userId) : false,
         _count: {
-          likes: post.likes.length
+          likes: post.likes.length,
+          dislikes: post.dislikes.length
         },
         likedBy: post.likes.map(like => like.userId),
-        // Remove the likes array from the response
-        likes: undefined
+        dislikedBy: post.dislikes.map(dislike => dislike.userId),
+        // Remove the arrays from the response
+        likes: undefined,
+        dislikes: undefined
       }));
 
       res.json(formattedPosts);
@@ -259,6 +269,79 @@ router.post("/posts/:id/like", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Error toggling like:", error);
     res.status(500).json({ error: "Failed to update like status" });
+  }
+});
+
+// Toggle dislike on a post (Protected Route)
+router.post("/posts/:id/dislike", authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.userId;
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        dislikes: true,
+        likes: {
+          where: {
+            userId: userId
+          }
+        }
+      }
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    // Remove like if exists
+    if (post.likes.length > 0) {
+      await prisma.like.deleteMany({
+        where: {
+          postId: postId,
+          userId: userId
+        }
+      });
+    }
+
+    // Check if user has already disliked the post
+    const existingDislike = await prisma.dislike.findFirst({
+      where: {
+        postId: postId,
+        userId: userId
+      }
+    });
+
+    if (existingDislike) {
+      // Remove dislike
+      await prisma.dislike.delete({
+        where: { id: existingDislike.id }
+      });
+      res.json({ 
+        disliked: false,
+        _count: {
+          dislikes: post.dislikes.length - 1
+        }
+      });
+    } else {
+      // Add dislike
+      await prisma.dislike.create({
+        data: {
+          userId: userId,
+          postId: postId
+        }
+      });
+      res.json({ 
+        disliked: true,
+        _count: {
+          dislikes: post.dislikes.length + 1
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error toggling dislike:", error);
+    res.status(500).json({ error: "Failed to update dislike status" });
   }
 });
 

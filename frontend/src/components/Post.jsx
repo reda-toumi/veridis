@@ -3,16 +3,20 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { API_URLS } from "../config";
 
-function Post({ post, onDelete, onLikeChange, currentUserId }) {
+function Post({ post, onDelete, onLikeChange, onDislikeChange, currentUserId }) {
   const [error, setError] = useState("");
   const [isLiked, setIsLiked] = useState(post.likedBy?.includes(currentUserId) || false);
+  const [isDisliked, setIsDisliked] = useState(post.dislikedBy?.includes(currentUserId) || false);
   const [likesCount, setLikesCount] = useState(post._count?.likes || 0);
+  const [dislikesCount, setDislikesCount] = useState(post._count?.dislikes || 0);
   const [likedBy, setLikedBy] = useState(post.likedBy || []);
+  const [dislikedBy, setDislikedBy] = useState(post.dislikedBy || []);
 
-  // Update like state when currentUserId changes (e.g., after login/logout)
+  // Update like/dislike state when currentUserId changes (e.g., after login/logout)
   useEffect(() => {
     setIsLiked(likedBy.includes(currentUserId));
-  }, [currentUserId, likedBy]);
+    setIsDisliked(dislikedBy.includes(currentUserId));
+  }, [currentUserId, likedBy, dislikedBy]);
 
   const handleDelete = async () => {
     try {
@@ -59,6 +63,15 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
           : prevLikedBy.filter(id => id !== currentUserId)
       );
 
+      // If post was disliked, remove the dislike
+      if (isDisliked) {
+        setIsDisliked(false);
+        setDislikesCount(prevCount => prevCount - 1);
+        setDislikedBy(prevDislikedBy => 
+          prevDislikedBy.filter(id => id !== currentUserId)
+        );
+      }
+
       // Send like/unlike request to backend
       const response = await axios.post(
         API_URLS.likes.toggle(post.id),
@@ -84,6 +97,67 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
         setError(error.response.data.error || "Failed to update like status. Please try again.");
       } else {
         setError("Failed to update like status. Please try again.");
+      }
+    }
+  };
+
+  const handleDislike = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("You must be logged in to dislike posts!");
+        return;
+      }
+
+      if (!currentUserId) {
+        alert("Please log in to dislike posts");
+        return;
+      }
+
+      // Toggle dislike state optimistically
+      const newDislikedState = !isDisliked;
+      setIsDisliked(newDislikedState);
+      setDislikesCount(prevCount => newDislikedState ? prevCount + 1 : prevCount - 1);
+      setDislikedBy(prevDislikedBy => 
+        newDislikedState 
+          ? [...prevDislikedBy, currentUserId]
+          : prevDislikedBy.filter(id => id !== currentUserId)
+      );
+
+      // If post was liked, remove the like
+      if (isLiked) {
+        setIsLiked(false);
+        setLikesCount(prevCount => prevCount - 1);
+        setLikedBy(prevLikedBy => 
+          prevLikedBy.filter(id => id !== currentUserId)
+        );
+      }
+
+      // Send dislike/undislike request to backend
+      const response = await axios.post(
+        API_URLS.dislikes.toggle(post.id),
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Notify parent component about the dislike change
+      if (onDislikeChange) {
+        onDislikeChange(post.id, response.data.disliked);
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setIsDisliked(!isDisliked);
+      setDislikesCount(prevCount => isDisliked ? prevCount + 1 : prevCount - 1);
+      setDislikedBy(prevDislikedBy => 
+        isDisliked 
+          ? [...prevDislikedBy, currentUserId]
+          : prevDislikedBy.filter(id => id !== currentUserId)
+      );
+      console.error("Error toggling dislike:", error);
+      if (error.response) {
+        setError(error.response.data.error || "Failed to update dislike status. Please try again.");
+      } else {
+        setError("Failed to update dislike status. Please try again.");
       }
     }
   };
@@ -140,6 +214,19 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
           </svg>
           <span>{likesCount} {likesCount === 1 ? 'Like' : 'Likes'}</span>
+        </button>
+
+        <button 
+          className={`flex items-center space-x-1 transition-colors ${
+            isDisliked ? 'text-red-600' : 'hover:text-red-600'
+          }`}
+          onClick={handleDislike}
+          disabled={!currentUserId}
+        >
+          <svg className="w-5 h-5 rotate-180" fill={isDisliked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+          </svg>
+          <span>{dislikesCount} {dislikesCount === 1 ? 'Dislike' : 'Dislikes'}</span>
         </button>
       </div>
     </div>

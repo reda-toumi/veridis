@@ -79,11 +79,34 @@ function Posts({ userId = null, allowPost = false }) {
           ? {
               ...post,
               liked: liked,
+              disliked: false, // Reset disliked state when liking
               _count: {
                 ...post._count,
                 likes: liked
                   ? (post._count?.likes || 0) + 1
                   : (post._count?.likes || 1) - 1,
+                dislikes: post.disliked ? post._count.dislikes - 1 : post._count.dislikes
+              },
+            }
+          : post
+      )
+    );
+  };
+
+  const handleDislikeChange = (postId, disliked) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              disliked: disliked,
+              liked: false, // Reset liked state when disliking
+              _count: {
+                ...post._count,
+                dislikes: disliked
+                  ? (post._count?.dislikes || 0) + 1
+                  : (post._count?.dislikes || 1) - 1,
+                likes: post.liked ? post._count.likes - 1 : post._count.likes
               },
             }
           : post
@@ -140,6 +163,7 @@ function Posts({ userId = null, allowPost = false }) {
               currentUserId={currentUserId}
               onDelete={handleDelete}
               onLikeChange={handleLikeChange}
+              onDislikeChange={handleDislikeChange}
             />
           ))
         ) : (

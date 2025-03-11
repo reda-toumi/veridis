@@ -16,5 +16,8 @@ export const API_URLS = {
   userPosts: (userId) => `${API_URL}/api/posts/user/${userId}`,
   likes: {
     toggle: (postId) => `${API_URL}/api/posts/${postId}/like`
+  },
+  dislikes: {
+    toggle: (postId) => `${API_URL}/api/posts/${postId}/dislike`
   }
 }; 
