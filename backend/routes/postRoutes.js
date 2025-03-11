@@ -60,7 +60,11 @@ router.get("/posts", async (req, res) => {
               username: true,
             },
           },
-          likes: true,
+          likes: {
+            select: {
+              userId: true
+            }
+          },
           _count: {
             select: {
               likes: true
@@ -75,10 +79,11 @@ router.get("/posts", async (req, res) => {
       // Format posts with like status and count
       const formattedPosts = posts.map(post => ({
         ...post,
-        liked: post.likes.some(like => like.userId === userId),
+        liked: userId ? post.likes.some(like => like.userId === userId) : false,
         _count: {
           likes: post.likes.length
         },
+        likedBy: post.likes.map(like => like.userId),
         // Remove the likes array from the response
         likes: undefined
       }));
@@ -164,7 +169,11 @@ router.get("/posts/user/:userId", authenticateToken, async (req, res) => {
               username: true,
             },
           },
-          likes: true,
+          likes: {
+            select: {
+              userId: true
+            }
+          },
           _count: {
             select: {
               likes: true
@@ -183,6 +192,7 @@ router.get("/posts/user/:userId", authenticateToken, async (req, res) => {
         _count: {
           likes: post.likes.length
         },
+        likedBy: post.likes.map(like => like.userId),
         // Remove the likes array from the response
         likes: undefined
       }));

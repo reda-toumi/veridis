@@ -1,12 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { API_URLS } from "../config";
 
 function Post({ post, onDelete, onLikeChange, currentUserId }) {
   const [error, setError] = useState("");
-  const [isLiked, setIsLiked] = useState(post.liked || false);
+  const [isLiked, setIsLiked] = useState(post.likedBy?.includes(currentUserId) || false);
   const [likesCount, setLikesCount] = useState(post._count?.likes || 0);
+  const [likedBy, setLikedBy] = useState(post.likedBy || []);
+
+  // Update like state when currentUserId changes (e.g., after login/logout)
+  useEffect(() => {
+    setIsLiked(likedBy.includes(currentUserId));
+  }, [currentUserId, likedBy]);
 
   const handleDelete = async () => {
     try {
@@ -38,10 +44,20 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
         return;
       }
 
+      if (!currentUserId) {
+        alert("Please log in to like posts");
+        return;
+      }
+
       // Toggle like state optimistically
       const newLikedState = !isLiked;
       setIsLiked(newLikedState);
       setLikesCount(prevCount => newLikedState ? prevCount + 1 : prevCount - 1);
+      setLikedBy(prevLikedBy => 
+        newLikedState 
+          ? [...prevLikedBy, currentUserId]
+          : prevLikedBy.filter(id => id !== currentUserId)
+      );
 
       // Send like/unlike request to backend
       const response = await axios.post(
@@ -58,6 +74,11 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
       // Revert optimistic update on error
       setIsLiked(!isLiked);
       setLikesCount(prevCount => isLiked ? prevCount + 1 : prevCount - 1);
+      setLikedBy(prevLikedBy => 
+        isLiked 
+          ? [...prevLikedBy, currentUserId]
+          : prevLikedBy.filter(id => id !== currentUserId)
+      );
       console.error("Error toggling like:", error);
       if (error.response) {
         setError(error.response.data.error || "Failed to update like status. Please try again.");
@@ -113,6 +134,7 @@ function Post({ post, onDelete, onLikeChange, currentUserId }) {
             isLiked ? 'text-indigo-600' : 'hover:text-indigo-600'
           }`}
           onClick={handleLike}
+          disabled={!currentUserId}
         >
           <svg className="w-5 h-5" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
