@@ -1,29 +1,29 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import Post from "./Post";
+import { API_URLS } from "../config";
 
 function Posts({ userId = null, allowPost = false }) {
   const [posts, setPosts] = useState([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // Determine API endpoint based on whether `userId` is provided
-  const API_URL = userId
-    ? `http://localhost:5001/api/posts/user/${userId}` // Fetch posts for specific user
-    : `http://localhost:5001/api/posts`; // Fetch all posts
-
-  // Fetch posts on mount or when `userId` changes
+  // Fetch posts on mount or when userId changes
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setCurrentUserId(payload.userId);
+    }
     const fetchPosts = async () => {
       try {
         const token = localStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const endpoint = userId ? API_URLS.userPosts(userId) : API_URLS.posts;
 
-        console.log('Fetching posts from:', API_URL);
-        console.log('For user ID:', userId);
-
-        const response = await axios.get(API_URL, { headers });
-        console.log('Posts received:', response.data);
+        const response = await axios.get(endpoint, { headers });
+        
         // Sort posts by newest first
         const sortedPosts = response.data.sort((a, b) => 
           new Date(b.createdAt) - new Date(a.createdAt)
@@ -36,65 +36,68 @@ function Posts({ userId = null, allowPost = false }) {
     };
 
     fetchPosts();
-  }, [userId]); // Re-run when `userId` changes
+  }, [userId]);
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
   };
 
-  const handleSubmit = async () => {
-    if (input.trim() === "") return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("You must be logged in to post!");
+        setError("You must be logged in to create a post!");
         return;
       }
 
       const response = await axios.post(
-        "http://localhost:5001/api/posts",
+        API_URLS.posts,
         { content: input },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Use the returned post (which includes user info)
-      setPosts([response.data, ...posts]);
+      setPosts((prevPosts) => [response.data, ...prevPosts]);
       setInput("");
+      setError("");
     } catch (error) {
       console.error("Error creating post:", error);
       setError("Failed to create post. Please try again.");
     }
   };
 
-  const handleDelete = async (postId) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("You must be logged in to delete posts!");
-        return;
-      }
+  const handleDelete = (postId) => {
+    setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+  };
 
-      // Send DELETE request to backend
-      await axios.delete(`http://localhost:5001/api/posts/${postId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Remove the deleted post from state
-      setPosts(posts.filter((post) => post.id !== postId));
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      setError("Failed to delete post. Please try again.");
-    }
+  const handleLikeChange = (postId, liked) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              liked: liked,
+              _count: {
+                ...post._count,
+                likes: liked
+                  ? (post._count?.likes || 0) + 1
+                  : (post._count?.likes || 1) - 1,
+              },
+            }
+          : post
+      )
+    );
   };
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        All Posts
+        {userId ? "User Posts" : "All Posts"}
       </h2>
 
-      {/* Post Input Box: Show in Browse page or when viewing own profile */}
+      {/* Post Creation Form */}
       {allowPost && (
         <div className="mb-8">
           <div className="max-w-2xl flex gap-3">
@@ -120,77 +123,24 @@ function Posts({ userId = null, allowPost = false }) {
         </div>
       )}
 
-      {/* Display Error Message */}
+      {/* Error Message */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600 text-center">{error}</p>
         </div>
       )}
 
-      {/* Display Posts */}
+      {/* Posts List */}
       <div className="space-y-6">
         {posts.length > 0 ? (
           posts.map((post) => (
-            <div 
+            <Post
               key={post.id}
-              className="relative bg-gray-50 rounded-lg p-6 border border-gray-100 hover:shadow-md transition-all duration-200"
-            >
-              {/* Delete Button (Only show if the logged-in user is the author) */}
-              {userId === post.userId && (
-                <button
-                  className="absolute top-4 right-4 p-2 text-sm font-medium text-gray-400 hover:text-red-600 rounded-lg transition-all duration-200 hover:bg-red-50"
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this post?')) {
-                      handleDelete(post.id);
-                    }
-                  }}
-                  title="Delete Post"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              )}
-
-              <div className="flex items-center space-x-3 mb-3">
-                <Link to={`/dashboard/profile/${post.user?.username}`} className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-600 font-medium">{post.user?.username[0] || "U"}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800 hover:text-indigo-600 transition-colors">
-                      {post.user?.username || "Unknown User"}
-                    </p>
-                    <p className="text-sm text-gray-500">{new Date(post.createdAt).toLocaleString()}</p>
-                  </div>
-                </Link>
-              </div>
-              <p className="text-gray-700 leading-relaxed">{post.content}</p>
-              <div className="mt-4 flex items-center space-x-4 text-gray-500">
-                <button 
-                  className={`flex items-center space-x-1 transition-colors ${
-                    post.liked ? 'text-indigo-600' : 'hover:text-indigo-600'
-                  }`}
-                  onClick={() => {
-                    const updatedPosts = posts.map(p => 
-                      p.id === post.id ? {...p, liked: !p.liked} : p
-                    );
-                    setPosts(updatedPosts);
-                  }}
-                >
-                  <svg className="w-5 h-5" fill={post.liked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                  </svg>
-                  <span>Like</span>
-                </button>
-                <button className="flex items-center space-x-1 hover:text-indigo-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <span>Comment</span>
-                </button>
-              </div>
-            </div>
+              post={post}
+              currentUserId={currentUserId}
+              onDelete={handleDelete}
+              onLikeChange={handleLikeChange}
+            />
           ))
         ) : (
           <div className="text-gray-400 text-center py-6">No posts found</div>

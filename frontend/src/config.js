@@ -13,5 +13,8 @@ export const API_URLS = {
   },
   posts: `${API_URL}/api/posts`,
   post: (id) => `${API_URL}/api/posts/${id}`,
-  userPosts: (userId) => `${API_URL}/api/posts/user/${userId}`
+  userPosts: (userId) => `${API_URL}/api/posts/user/${userId}`,
+  likes: {
+    toggle: (postId) => `${API_URL}/api/posts/${postId}/like`
+  }
 }; 

@@ -18,55 +18,100 @@ router.post("/posts", authenticateToken, async (req, res) => {
       const newPost = await prisma.post.create({
         data: {
           content,
-          userId: req.user.userId, // Attach the logged-in user's ID
+          userId: req.user.userId,
         },
-      });
-  
-      // Fetch the newly created post with user info
-      const postWithUser = await prisma.post.findUnique({
-        where: { id: newPost.id },
         include: {
-          user: { select: { id: true, username: true } }, // Ensure user info is included
+          user: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          likes: true,
         },
       });
+
+      // Format the response
+      const formattedPost = {
+        ...newPost,
+        liked: false,
+        _count: {
+          likes: 0
+        }
+      };
   
-      res.status(201).json(postWithUser);
+      res.status(201).json(formattedPost);
     } catch (error) {
       console.error("Error creating post:", error);
       res.status(500).json({ error: "Internal server error" });
     }
-  });
-  
+});
 
 // Get all posts (Public Route)
 router.get("/posts", async (req, res) => {
     try {
+      const userId = req.headers.authorization ? req.user?.userId : null;
+      
       const posts = await prisma.post.findMany({
         include: {
-          user: { select: { id: true, username: true } }, // Ensure user data is included
+          user: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          likes: true,
+          _count: {
+            select: {
+              likes: true
+            }
+          }
         },
-        orderBy: { createdAt: "desc" }, // Order by newest first
+        orderBy: {
+          createdAt: "desc"
+        },
       });
-  
-      res.json(posts);
+
+      // Format posts with like status and count
+      const formattedPosts = posts.map(post => ({
+        ...post,
+        liked: post.likes.some(like => like.userId === userId),
+        _count: {
+          likes: post.likes.length
+        },
+        // Remove the likes array from the response
+        likes: undefined
+      }));
+
+      res.json(formattedPosts);
     } catch (error) {
       console.error("Error fetching posts:", error);
       res.status(500).json({ error: "Internal server error" });
     }
-  });
+});
 
 // Get posts for the logged-in user (Protected Route)
 router.get("/my-posts", authenticateToken, async (req, res) => {
     try {
       const userPosts = await prisma.post.findMany({
-        where: { userId: req.user.userId }, // Fetch posts by user ID
+        where: { userId: req.user.userId },
         include: {
-          user: { select: { id: true, username: true } }, // Include username
+          user: { select: { id: true, username: true } },
+          likes: true
         },
         orderBy: { createdAt: "desc" },
       });
-  
-      res.json(userPosts);
+
+      // Add liked status for the current user
+      const postsWithLikeStatus = userPosts.map(post => ({
+        ...post,
+        liked: post.likes.some(like => like.userId === req.user.userId),
+        _count: {
+          likes: post.likes.length
+        }
+      }));
+
+      res.json(postsWithLikeStatus);
     } catch (error) {
       console.error("Error fetching user's posts:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -77,9 +122,8 @@ router.get("/my-posts", authenticateToken, async (req, res) => {
 router.delete("/posts/:id", authenticateToken, async (req, res) => {
     try {
       const postId = req.params.id;
-      const userId = req.user.userId; // Get user from token
+      const userId = req.user.userId;
   
-      // Find the post
       const post = await prisma.post.findUnique({
         where: { id: postId },
       });
@@ -88,12 +132,10 @@ router.delete("/posts/:id", authenticateToken, async (req, res) => {
         return res.status(404).json({ error: "Post not found" });
       }
   
-      // Check if the logged-in user is the owner
       if (post.userId !== userId) {
         return res.status(403).json({ error: "Unauthorized to delete this post" });
       }
   
-      // Delete post
       await prisma.post.delete({
         where: { id: postId },
       });
@@ -103,33 +145,110 @@ router.delete("/posts/:id", authenticateToken, async (req, res) => {
       console.error("Error deleting post:", error);
       res.status(500).json({ error: "Internal server error" });
     }
-  });
+});
 
 // Get posts for a specific user (Protected Route)
 router.get("/posts/user/:userId", authenticateToken, async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    console.log('Fetching posts for user:', userId);
+    try {
+      const targetUserId = req.params.userId;
+      const currentUserId = req.user.userId;
 
-    const userPosts = await prisma.post.findMany({
-      where: { userId: userId },
-      include: {
-        user: { 
-          select: { 
-            id: true, 
-            username: true,
-            avatar: true 
-          } 
+      const posts = await prisma.post.findMany({
+        where: {
+          userId: targetUserId
         },
-      },
-      orderBy: { createdAt: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          likes: true,
+          _count: {
+            select: {
+              likes: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+      });
+
+      // Format posts with like status and count
+      const formattedPosts = posts.map(post => ({
+        ...post,
+        liked: post.likes.some(like => like.userId === currentUserId),
+        _count: {
+          likes: post.likes.length
+        },
+        // Remove the likes array from the response
+        likes: undefined
+      }));
+
+      res.json(formattedPosts);
+    } catch (error) {
+      console.error("Error fetching user's posts:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Toggle like on a post (Protected Route)
+router.post("/posts/:id/like", authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.userId;
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        likes: true
+      }
     });
 
-    console.log(`Found ${userPosts.length} posts for user ${userId}`);
-    res.json(userPosts);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    // Check if user has already liked the post
+    const existingLike = await prisma.like.findFirst({
+      where: {
+        postId: postId,
+        userId: userId
+      }
+    });
+
+    if (existingLike) {
+      // Unlike: Remove the like
+      await prisma.like.delete({
+        where: { id: existingLike.id }
+      });
+      res.json({ 
+        liked: false,
+        _count: {
+          likes: post.likes.length - 1
+        }
+      });
+    } else {
+      // Like: Create new like
+      await prisma.like.create({
+        data: {
+          userId: userId,
+          postId: postId
+        }
+      });
+      res.json({ 
+        liked: true,
+        _count: {
+          likes: post.likes.length + 1
+        }
+      });
+    }
   } catch (error) {
-    console.error("Error fetching user's posts:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error toggling like:", error);
+    res.status(500).json({ error: "Failed to update like status" });
   }
 });
 
