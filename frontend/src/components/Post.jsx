@@ -44,10 +44,11 @@ function Post({ post, onDelete, onLikeChange, onDislikeChange, currentUserId }) 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("You must be logged in to like posts!");
+        setError("Please log in to like posts");
         return;
       }
 
+<<<<<<< HEAD
       if (!currentUserId) {
         alert("Please log in to like posts");
         return;
@@ -71,6 +72,18 @@ function Post({ post, onDelete, onLikeChange, onDislikeChange, currentUserId }) 
           prevDislikedBy.filter(id => id !== currentUserId)
         );
       }
+=======
+      // Store previous state for rollback
+      const previousState = {
+        isLiked: isLiked,
+        likesCount: likesCount
+      };
+
+      // Optimistically update UI
+      const newLikedState = !isLiked;
+      setIsLiked(newLikedState);
+      setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
+>>>>>>> b45ebb8 (LIKES WIHTOUT DISLIKE)
 
       // Send like/unlike request to backend
       const response = await axios.post(
@@ -79,11 +92,18 @@ function Post({ post, onDelete, onLikeChange, onDislikeChange, currentUserId }) 
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Notify parent component about the like change
-      if (onLikeChange) {
-        onLikeChange(post.id, response.data.liked);
+      // Update with server response
+      if (response.data) {
+        setIsLiked(response.data.liked);
+        setLikesCount(response.data._count.likes);
+        
+        // Notify parent component
+        if (onLikeChange) {
+          onLikeChange(post.id, response.data);
+        }
       }
     } catch (error) {
+<<<<<<< HEAD
       // Revert optimistic update on error
       setIsLiked(!isLiked);
       setLikesCount(prevCount => isLiked ? prevCount + 1 : prevCount - 1);
@@ -92,12 +112,13 @@ function Post({ post, onDelete, onLikeChange, onDislikeChange, currentUserId }) 
           ? [...prevLikedBy, currentUserId]
           : prevLikedBy.filter(id => id !== currentUserId)
       );
+=======
+      // Revert to previous state on error
+      setIsLiked(previousState.isLiked);
+      setLikesCount(previousState.likesCount);
+>>>>>>> b45ebb8 (LIKES WIHTOUT DISLIKE)
       console.error("Error toggling like:", error);
-      if (error.response) {
-        setError(error.response.data.error || "Failed to update like status. Please try again.");
-      } else {
-        setError("Failed to update like status. Please try again.");
-      }
+      setError(error.response?.data?.error || "Failed to update like status");
     }
   };
 
