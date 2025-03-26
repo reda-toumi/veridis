@@ -56,7 +56,7 @@ router.get("/:username", authenticateToken, async (req, res) => {
       return res.status(500).json({ error: "Database connection error" });
     }
 
-    // First check if the user exists
+    
     const user = await prisma.user.findUnique({
       where: { username: req.params.username },
       select: {
